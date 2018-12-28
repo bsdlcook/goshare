@@ -33,11 +33,19 @@ type XShareConfig struct {
 	ShowExt   bool   `json:"showExtUrl"`
 }
 
-func GetConfig() XShareConfig {
-	ConfigFile, err := ioutil.ReadFile(fmt.Sprintf("/home/%s/.config/xshare/settings.json", os.Getenv("USER")))
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+func Check(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func GetConfig() XShareConfig {
+	ConfigFile, err := ioutil.ReadFile(fmt.Sprintf("/home/%s/.config/xshare/settings.json", os.Getenv("USER")))
+	Check(err)
 
 	Config := XShareConfig{}
 	json.Unmarshal(ConfigFile, &Config)
@@ -45,25 +53,31 @@ func GetConfig() XShareConfig {
 	return Config
 }
 
+func PrintConfig() {
+	Config := GetConfig()
+	fmt.Printf("*** XShare Settings ***\n(Loaded from /home/%s/.config/xshare/settings.json)\n\nHost: \t\t\t%s:%s\nRemote Directory: \t%s\nRemote Url: \t\t%s\nFile Length: \t\t%d\nShow Extension: \t%t\n",
+		os.Getenv("USER"),
+		Config.Host,
+		Config.Port,
+		Config.RemoteDir,
+		Config.RemoteUrl,
+		Config.FileLen,
+		Config.ShowExt)
+}
+
 func ReadPublicKey() (ssh.AuthMethod, error) {
 	Buffer, err := ioutil.ReadFile(fmt.Sprintf("/home/%s/.ssh/id_rsa", os.Getenv("USER")))
-	if err != nil {
-		return nil, err
-	}
+	Check(err)
 
 	Key, err := ssh.ParsePrivateKey(Buffer)
-	if err != nil {
-		return nil, err
-	}
+	Check(err)
 
 	return ssh.PublicKeys(Key), err
 }
 
 func ConnectServer(Config XShareConfig) (*ssh.Client, error) {
 	PublicKey, err := ReadPublicKey()
-	if err != nil {
-		return nil, err
-	}
+	Check(err)
 
 	ClientConfig := &ssh.ClientConfig{
 		User: os.Getenv("USER"),
@@ -73,11 +87,9 @@ func ConnectServer(Config XShareConfig) (*ssh.Client, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	Addr := fmt.Sprintf("%s:%s", Config.Host, Config.Port)
+	Addr      := fmt.Sprintf("%s:%s", Config.Host, Config.Port)
 	Conn, err := ssh.Dial("tcp", Addr, ClientConfig)
-	if err != nil {
-		return nil, err
-	}
+	Check(err)
 
 	return Conn, nil
 }
@@ -88,25 +100,22 @@ func ReadLocalFile(File *string) io.Reader {
 	}
 
 	Data, err := ioutil.ReadFile(*File)
-	if err != nil {
-		log.Fatal(err)
-	}
+	Check(err)
 
 	return bytes.NewReader(Data)
 }
 
 func Screenshot() io.Reader {
 	Output, err := exec.Command("maim", "-s").Output()
-	if err != nil {
-		return nil
-	}
+	Check(err)
 
 	return bytes.NewReader(Output)
 }
 
 func GenRandomChars(length uint8) string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	chars := make([]rune, length)
+	chars   := make([]rune, length)
+	
 	for i := range chars {
 		chars[i] = letters[rand.Intn(len(letters))]
 	}
@@ -114,15 +123,7 @@ func GenRandomChars(length uint8) string {
 	return string(chars)
 }
 
-func Check(err error) (string, error) {
-	if err != nil {
-		return "", err
-	}
-
-	return "", nil
-}
-
-func UploadFile(Config XShareConfig, Flags XShareFlags) (string, error) {
+func UploadFile(Config XShareConfig, Flags XShareFlags) (string) {
 	Conn, err := ConnectServer(Config)
 	Check(err)
 
@@ -162,34 +163,34 @@ func UploadFile(Config XShareConfig, Flags XShareFlags) (string, error) {
 	}()
 
 	if Config.ShowExt {
-		return string(fmt.Sprintf("%s%s", Config.RemoteUrl, FileName)), nil
+		return string(fmt.Sprintf("%s%s", Config.RemoteUrl, FileName))
 	}
 
-	return string(fmt.Sprintf("%s%s", Config.RemoteUrl, FileName[:len(FileName)-len(filepath.Ext(FileName))])), nil
+	return string(fmt.Sprintf("%s%s", Config.RemoteUrl, FileName[:len(FileName)-len(filepath.Ext(FileName))]))
 }
 
-func init() { rand.Seed(time.Now().UnixNano()) }
 func main() {
-	Screenshot := flag.Bool("s", false, "Take a screenshot with maim")
-	LocalFile := flag.String("f", "", "Select local file to upload")
-	KeepName := flag.Bool("k", false, "Keep the original name of the local file to upload oppose to random")
-	Clipboard := flag.Bool("c", false, "Copy the file URL to clipboard when the file has uploaded")
-	flag.Parse()
+	Screenshot := flag.Bool("c", false, "Capture a screenshot with maim.")
+	KeepName   := flag.Bool("k", false, "Keep the original name of the local file to upload oppose to random.")
+	Clipboard  := flag.Bool("p", false, "Copy the file URL to clipboard when the file has uploaded.")
+	Settings   := flag.Bool("s", false, "Show the current configuration settings.")
+	LocalFile  := flag.String("f", "", "Select local file to upload.")
 
-	if !*Screenshot && *LocalFile == "" {
+	flag.Parse()
+	if *Settings {
+		PrintConfig()
+		os.Exit(1)
+	} else if !*Screenshot && *LocalFile == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	Flags := XShareFlags{*Screenshot, *LocalFile, *KeepName}
-	FileUrl, err := UploadFile(GetConfig(), Flags)
-	if err != nil {
-		log.Fatal(err)
-	}
+	Flags   := XShareFlags{*Screenshot, *LocalFile, *KeepName}
+	FileUrl	:= UploadFile(GetConfig(), Flags)
 
 	if *Clipboard {
 		clipboard.WriteAll(FileUrl)
 	} else {
-		fmt.Print(FileUrl)
+		fmt.Printf("%s\n", FileUrl)
 	}
 }
