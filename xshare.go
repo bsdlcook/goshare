@@ -1,22 +1,23 @@
 package main
 
 import (
-	"encoding/json"
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"sync"
-	"math/rand"
-	"time"
-	"log"
+	"github.com/atotto/clipboard"
+	"github.com/jessevdk/go-flags"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
+	"log"
+	"math/rand"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"github.com/jessevdk/go-flags"
-	"github.com/atotto/clipboard"
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
+	"sync"
+	"time"
 )
 
 type XShareOptions struct {
@@ -71,8 +72,8 @@ func Screenshot() io.Reader {
 
 func GenRandomChars(Length uint8) string {
 	Letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	Chars   := make([]rune, Length)
-	
+	Chars := make([]rune, Length)
+
 	for i := range Chars {
 		Chars[i] = Letters[rand.Intn(len(Letters))]
 	}
@@ -102,7 +103,7 @@ func ConnectServer(Config XShareConfig) (*ssh.Client, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	Addr      := fmt.Sprintf("%s:%s", Config.Host, Config.Port)
+	Addr := fmt.Sprintf("%s:%s", Config.Host, Config.Port)
 	Conn, err := ssh.Dial("tcp", Addr, ClientConfig)
 	Check(err)
 
@@ -113,21 +114,21 @@ var WaitGroup = sync.WaitGroup{}
 
 func UploadFile(LocalFile string, Options XShareOptions) {
 	Config := GetConfig()
-	
+
 	Conn, err := ConnectServer(Config)
 	Check(err)
 
 	Client, err := sftp.NewClient(Conn)
 	Check(err)
-	
+
 	var FileName string
 	switch {
-		case Options.KeepName && len(Options.Files) >= 1:
-			FileName = LocalFile
-		case len(Options.Files) >= 1:
-			FileName = GenRandomChars(Config.FileLen) + filepath.Ext(LocalFile)
-		default:
-			FileName = GenRandomChars(Config.FileLen) + ".png"
+	case Options.KeepName && len(Options.Files) >= 1:
+		FileName = LocalFile
+	case len(Options.Files) >= 1:
+		FileName = GenRandomChars(Config.FileLen) + filepath.Ext(LocalFile)
+	default:
+		FileName = GenRandomChars(Config.FileLen) + ".png"
 	}
 
 	File, err := Client.Create(fmt.Sprintf("%s%s", Config.RemoteDir, FileName))
@@ -135,9 +136,9 @@ func UploadFile(LocalFile string, Options XShareOptions) {
 
 	var Output io.Reader
 	if len(Options.Files) >= 1 {
-		Output = ReadLocalFile(&LocalFile)	
+		Output = ReadLocalFile(&LocalFile)
 	} else {
-		Output = Screenshot()	
+		Output = Screenshot()
 	}
 
 	Data, err := ioutil.ReadAll(Output)
@@ -150,7 +151,7 @@ func UploadFile(LocalFile string, Options XShareOptions) {
 		Conn.Close()
 		Client.Close()
 		File.Close()
-		
+
 		var ScreenshotUrl string
 		if Config.ShowExtUrl {
 			ScreenshotUrl = fmt.Sprintf("%s%s", Config.RemoteUrl, FileName)
@@ -158,15 +159,16 @@ func UploadFile(LocalFile string, Options XShareOptions) {
 			ScreenshotUrl = fmt.Sprintf("%s%s", Config.RemoteUrl, FileName[:len(FileName)-len(filepath.Ext(FileName))])
 		}
 
+		FileName = url.PathEscape(FileName)
 		switch {
-			case len(Options.Files) >= 1:
-				fmt.Printf("%s: %s%s\n", LocalFile, Config.RemoteUrl, FileName)
-				WaitGroup.Done()
-			case Options.Clipboard:
-				clipboard.WriteAll(fmt.Sprintf("%s", ScreenshotUrl))
-			default:
-				fmt.Printf("%s\n", ScreenshotUrl)
-		} 
+		case len(Options.Files) >= 1:
+			fmt.Printf("%s: %s%s\n", LocalFile, Config.RemoteUrl, FileName)
+			WaitGroup.Done()
+		case Options.Clipboard:
+			clipboard.WriteAll(fmt.Sprintf("%s", ScreenshotUrl))
+		default:
+			fmt.Printf("%s\n", ScreenshotUrl)
+		}
 	}()
 }
 
@@ -186,9 +188,9 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func main() {	
-	Opts   := XShareOptions{}
-	Flags  := flags.NewParser(&Opts, flags.Default&^flags.HelpFlag)
+func main() {
+	Opts := XShareOptions{}
+	Flags := flags.NewParser(&Opts, flags.Default&^flags.HelpFlag)
 	_, err := Flags.Parse()
 	Check(err)
 
