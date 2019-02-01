@@ -28,6 +28,7 @@ type XShareOptions struct {
 }
 
 type XShareConfig struct {
+	User       string `json:"user"`
 	Host       string `json:"host"`
 	Port       string `json:"port"`
 	RemoteDir  string `json:"remoteDir"`
@@ -43,7 +44,7 @@ func Check(err error) {
 }
 
 func GetConfig() XShareConfig {
-	ConfigFile, err := ioutil.ReadFile(fmt.Sprintf("/home/%s/.config/xshare/settings.json", os.Getenv("USER")))
+	ConfigFile, err := ioutil.ReadFile(fmt.Sprintf("/home/%s/.config/goshare/settings.json", os.Getenv("USER")))
 	Check(err)
 
 	Config := XShareConfig{}
@@ -95,8 +96,15 @@ func ConnectServer(Config XShareConfig) (*ssh.Client, error) {
 	PublicKey, err := ReadPublicKey()
 	Check(err)
 
+	var User string
+	if len(Config.User) != 0 {
+		User = Config.User
+	} else {
+		User = os.Getenv("USER")
+	}
+
 	ClientConfig := &ssh.ClientConfig{
-		User: os.Getenv("USER"),
+		User: User,
 		Auth: []ssh.AuthMethod{
 			PublicKey,
 		},
