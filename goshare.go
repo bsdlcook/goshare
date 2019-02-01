@@ -20,14 +20,14 @@ import (
 	"time"
 )
 
-type XShareOptions struct {
+type GoShareOptions struct {
 	Screenshot bool     `short:"s" long:"screenshot" description:"Capture a screenshot with maim."`
 	Clipboard  bool     `short:"c" long:"copy" description:"Copy the uploaded screenshot url to clipboard."`
 	KeepName   bool     `short:"k" long:"keepname" description:"Keep local filename intact when uploading instead of randomized."`
 	Files      []string `short:"f" long:"file" description:"Local file(s) to upload."`
 }
 
-type XShareConfig struct {
+type GoShareConfig struct {
 	User       string `json:"user"`
 	Host       string `json:"host"`
 	Port       string `json:"port"`
@@ -43,11 +43,11 @@ func Check(err error) {
 	}
 }
 
-func GetConfig() XShareConfig {
+func GetConfig() GoShareConfig {
 	ConfigFile, err := ioutil.ReadFile(fmt.Sprintf("/home/%s/.config/goshare/settings.json", os.Getenv("USER")))
 	Check(err)
 
-	Config := XShareConfig{}
+	Config := GoShareConfig{}
 	json.Unmarshal(ConfigFile, &Config)
 
 	return Config
@@ -92,7 +92,7 @@ func ReadPublicKey() (ssh.AuthMethod, error) {
 	return ssh.PublicKeys(Key), err
 }
 
-func ConnectServer(Config XShareConfig) (*ssh.Client, error) {
+func ConnectServer(Config GoShareConfig) (*ssh.Client, error) {
 	PublicKey, err := ReadPublicKey()
 	Check(err)
 
@@ -120,7 +120,7 @@ func ConnectServer(Config XShareConfig) (*ssh.Client, error) {
 
 var WaitGroup = sync.WaitGroup{}
 
-func UploadFile(LocalFile string, Options XShareOptions) {
+func UploadFile(LocalFile string, Options GoShareOptions) {
 	Config := GetConfig()
 
 	Conn, err := ConnectServer(Config)
@@ -180,7 +180,7 @@ func UploadFile(LocalFile string, Options XShareOptions) {
 	}()
 }
 
-func ParseOptions(Options XShareOptions) {
+func ParseOptions(Options GoShareOptions) {
 	if len(Options.Files) >= 1 {
 		WaitGroup.Add(len(Options.Files))
 		for _, File := range Options.Files {
@@ -197,7 +197,7 @@ func init() {
 }
 
 func main() {
-	Opts := XShareOptions{}
+	Opts := GoShareOptions{}
 	Flags := flags.NewParser(&Opts, flags.Default&^flags.HelpFlag)
 	_, err := Flags.Parse()
 	Check(err)
