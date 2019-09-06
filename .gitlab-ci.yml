@@ -1,33 +1,36 @@
-image: golang:alpine
-
 variables:
-        REPO: gitlab.com/nihilism/goshare
+        BINARY: $CI_PROJECT_NAME
+        BUILD_DIR: "builds"
+        GO111MODULE: "on"
 
-before_script:
-        - apk add git
-        - mkdir -p $GOPATH/src/$(dirname $REPO)
-        - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO
-        - cd $GOPATH/src/$REPO
+.init_go: &init_go
+        before_script:
+                - export GL_URL=$(echo $CI_PROJECT_URL | awk -F/ '{print $3}')
+                - export GO_PROJECT_PATH="$GOPATH/src/$GL_URL/$CI_PROJECT_NAMESPACE"
+                - mkdir -p $GO_PROJECT_PATH
+                - ln -s $(pwd) $GO_PROJECT_PATH
+                - export GO_PROJECT_PATH="$GO_PROJECT_PATH/$CI_PROJECT_NAME"
+                - cd $GO_PROJECT_PATH
+                - apk add git
 
 stages:
         - build
 
-compile:
+go_build:
+        <<: *init_go
         stage: build
+        image: golang:1.12-alpine
         script:
                 - go get
-                - export CGO_ENABLED=0 # Statically compile goshare
-                - export GOOS=freebsd GOARCH=386 # FreeBSD, i386
-                - go build -o goshare-freebsd-i386
-                - export GOARCH=amd64 # FreeBSD, amd64
-                - go build -o goshare-freebsd-amd64
-                - export GOOS=linux GOARCH=386 # Linux, i386
-                - go build -o goshare-linux-i386
-                - export GOARCH=amd64 # Linux, amd64
-                - go build -o goshare-linux-amd64
+                - mkdir $BUILD_DIR
+                - export CGO_ENABLED=0 GOOS=freebsd GOARCH=386
+                - go build -o $BUILD_DIR/$BINARY-$GOOS-$GOARCH
+                - export GOARCH=amd64
+                - go build -o $BUILD_DIR/$BINARY-$GOOS-$GOARCH
+                - export GOOS=linux GOARCH=386
+                - go build -o $BUILD_DIR/$BINARY-$GOOS-$GOARCH
+                - export GOARCH=amd64
+                - go build -o $BUILD_DIR/$BINARY-$GOOS-$GOARCH
         artifacts:
                 paths:
-                        - goshare-freebsd-i386
-                        - goshare-freebsd-amd64
-                        - goshare-linux-i386
-                        - goshare-linux-amd64
+                        - $BUILD_DIR/
