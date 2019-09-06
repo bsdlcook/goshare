@@ -1,0 +1,33 @@
+image: golang:alpine
+
+variables:
+        REPO: gitlab.com/nihilism/goshare
+
+before_script:
+        - apk add git
+        - mkdir -p $GOPATH/src/$(dirname $REPO)
+        - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO
+        - cd $GOPATH/src/$REPO
+
+stages:
+        - build
+
+compile:
+        stage: build
+        script:
+                - go get
+                - export CGO_ENABLED=0 # Statically compile goshare
+                - export GOOS=freebsd GOARCH=386 # FreeBSD, i386
+                - go build -o goshare-freebsd-i386
+                - export GOARCH=amd64 # FreeBSD, amd64
+                - go build -o goshare-freebsd-amd64
+                - export GOOS=linux GOARCH=386 # Linux, i386
+                - go build -o goshare-linux-i386
+                - export GOARCH=amd64 # Linux, amd64
+                - go build -o goshare-linux-amd64
+        artifacts:
+                paths:
+                        - goshare-freebsd-i386
+                        - goshare-freebsd-amd64
+                        - goshare-linux-i386
+                        - goshare-linux-amd64
