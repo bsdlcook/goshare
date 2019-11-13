@@ -20,21 +20,26 @@ import (
 	"time"
 )
 
+const (
+	VERSION = "v0.3"
+)
+
 type GoShareOptions struct {
 	Screenshot bool     `short:"s" long:"screenshot" description:"Capture a screenshot with maim."`
 	Clipboard  bool     `short:"c" long:"copy" description:"Copy the uploaded screenshot url to clipboard."`
 	KeepName   bool     `short:"k" long:"keepname" description:"Keep local filename intact when uploading instead of randomized."`
 	Files      []string `short:"f" long:"file" description:"Local file(s) to upload."`
+	Version    bool     `short:"v" long:"version" description:"Print version number."`
 }
 
 type GoShareConfig struct {
-	User       string `json:"user"`
-	Host       string `json:"host"`
-	Port       string `json:"port"`
-	RemoteDir  string `json:"remoteDir"`
-	RemoteUrl  string `json:"remoteUrl"`
-	FileLen    uint8  `json:"fileLen"`
-	ShowExtUrl bool   `json:"showExtUrl"`
+	User       string `json:"User"`
+	Host       string `json:"Host"`
+	Port       string `json:"Port"`
+	RemoteDir  string `json:"RemoteDir"`
+	RemoteUrl  string `json:"RemoteUrl"`
+	FileLen    uint8  `json:"FileLen"`
+	ShowExtUrl bool   `json:"ShowExtUrl"`
 }
 
 func Check(err error) {
@@ -201,6 +206,11 @@ func main() {
 	Flags := flags.NewParser(&Opts, flags.Default&^flags.HelpFlag)
 	_, err := Flags.Parse()
 	Check(err)
+
+	if Opts.Version {
+		fmt.Println(VERSION)
+		os.Exit(1)
+	}
 
 	if !Opts.Screenshot && len(Opts.Files) < 1 {
 		Flags.WriteHelp(os.Stdout)
