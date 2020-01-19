@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	VERSION = "v0.3"
+	VERSION = "v0.4"
 )
 
 type GoShareOptions struct {
@@ -77,7 +77,7 @@ func Screenshot() io.Reader {
 }
 
 func GenRandomChars(Length uint8) string {
-	Letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	Letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@!$&*-=+")
 	Chars := make([]rune, Length)
 
 	for i := range Chars {
